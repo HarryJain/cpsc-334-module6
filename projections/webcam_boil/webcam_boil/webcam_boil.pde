@@ -34,10 +34,6 @@ void setup() {
 }
 
 void draw() {
-  //PImage curr = get();
-  //curr.resize(displayWidth * 2, displayHeight * 2);
-  //image(curr, -displayWidth,-displayHeight);
-  background(0);
   if(cam.available()) {
     cam.read();
   }
@@ -46,6 +42,7 @@ void draw() {
   int offsetX = (displayWidth - cam.width) / 2;
   int offsetY = (displayHeight - cam.height) / 2;
   cam.filter(GRAY);
+  
   image(cam, offsetX, offsetY);
   //cam.resize(displayWidth, displayHeight);
   //saveFrame("currFrame.png");
@@ -83,10 +80,10 @@ void draw() {
         //randomize squares 10+vol*200, 10+vol*200
         
         //VERSION 1
-        //sq_width = (int)random(5, 30);
+        sq_width = (int)random(5, 30);
         
         //VERSION 2
-        sq_width = (int)random(10+vol*300, 10+vol*300);
+        //sq_width = (int)random(10+vol*300, 10+vol*300);
         r_sum = g_sum = b_sum = 0.0;
         r_avg = g_avg = b_avg = 0.0;
         for (int a = x; a < x + sq_width; a += 1)
@@ -94,11 +91,20 @@ void draw() {
           for (int c = y; c < y + sq_width; c+=1)
           {
              int loc = (a + c * cam.width) % (cam.height * cam.width);
-
-  
-               float r = red(cam.pixels[loc]);
-               float g = green(cam.pixels[loc]);
-               float b = blue(cam.pixels[loc]);
+             //outofbounds
+             float r = 0.0;
+             float g = 0.0;
+             float b = 0.0;
+             if(!isPerson)
+             {
+                r = red(cam.pixels[loc]);
+               g = green(cam.pixels[loc]);
+               b = blue(cam.pixels[loc]);
+             }
+             else
+             {
+                r = red(cam.pixels[loc]);
+             }
              
              r_sum += r;
              g_sum += g;
@@ -111,15 +117,15 @@ void draw() {
         b_avg = b_sum / (sq_width * sq_width);
         
         noStroke();
-
-        if(random(0,1000) <= (int)random(0, (10+vol*300) * (vol * 300)))
+        
+        if(random(0,1000) <= 1)
         {
-          //int r = (int)random(0,256);
-          fill(color(0, 255, 255));
+          int r = (int)random(0,256);
+          fill(color(r, r, r));
         }
         else
         {
-          fill(r_avg, (g_avg + x + millis() * 0.3) % 255, (b_avg + y + millis() * 0.3) % 255);
+          fill(r_avg, g_avg, b_avg);
         }
         rect(x + offsetX, y + offsetY, sq_width, sq_width);
         
@@ -129,21 +135,30 @@ void draw() {
      y += sq_width;
      x = 0;
     }
-
+    
+   //now do it again with the face area
+    
     for(int j = 1; j < (4 * nFaces) + 1; j+= 4)
     {
-        //noFill();
-        color(255);
-        noStroke();
-        //strokeWeight(12);
-        //stroke(255,0,0);
-        //10+vol*200, 10+vol*200
-        blendMode(ADD);
-        rect(offsetX + faces[j], offsetY + faces[j+1], faces[j+2], faces[j+3]);
-        blendMode(NORMAL);
     }
+
+ 
+    for(int j = 1; j < (4 * nFaces) + 1; j+= 4)
+    {
+        noFill();
+        strokeWeight(12);
+        stroke(255,0,0);
+        //10+vol*200, 10+vol*200
+        rect(offsetX + faces[j], offsetY + faces[j+1], faces[j+2], faces[j+3]);
+        PImage human = cam.get(faces[j], faces[j+1], faces[j+2], faces[j+3]);
+        //image(human, 0,0);
+        image(human, (int)random(0, displayWidth - faces[j+2]), (int)random(0, displayWidth - faces[j+3]));
+    }
+    
+
     
     }
     
   //image(cam, random(width), random(height));
+
 }
