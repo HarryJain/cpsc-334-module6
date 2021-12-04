@@ -1,11 +1,11 @@
-/** Inspired by (apologies for the insensitive terminology):
-   CPSC 334 - Module 6 - ESP-NOW Installation Template
+/* CPSC 334 - Module 6 - ESP-NOW Installation Template
    Date: 3 December 2021
    Author: Harry Jain <https://github.com/HarryJain>
    Purpose: ESP-NOW RSSI proximity measurement to trigger art installations with a ESP32 remote
    Description: This sketch consists of the template for installations that are triggered by the remotes.
    References:
    a. https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/ESPNow/Basic
+   b. https://github.com/arvindr21
    << This Remote >>
    Flow: Installation
    Step 1 : Initialize ESP-NOW on Installation and set it in STA mode
@@ -26,11 +26,18 @@
 #include <WiFi.h>
 
 
-// Global copy of remote object
-esp_now_peer_info_t remote;
+// Connection and debugging constants
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
 #define DELETEBEFOREPAIR 0
+
+
+// Global constant for the total number of remotes
+#define REMOTE_COUNT 4
+// Global list of remote objects
+esp_now_peer_info_t remotes[REMOTE_COUNT];
+// MAC addresses of remote ESP32s
+String devices[REMOTE_COUNT] = {"E8:68:E7:30:54:69", "E8:68:E7:30:61:4D", "E8:68:E7:30:5B:C9", "E8:68:E7:30:2A:A9"};
 
 
 // Initialize ESP Now with fallback
@@ -46,15 +53,17 @@ void InitESPNow() {
 }
 
 
-// Global rssi value to store proximity
-uint8_t rssi = 0;
+// Global rssi list to store proximity to each remote
+uint8_t rssis[REMOTE_COUNT] = {0, 0, 0, 0};
 // Scan for remotes in AP mode
-void ScanForRemote() {
+void ScanForRemotes() {
   int8_t scanResults = WiFi.scanNetworks();
   
   // Reset on each scan
   bool remoteFound = 0;
-  memset(&remote, 0, sizeof(remote));
+  for (int i = 0; i < REMOTE_COUNT; i++) {
+    memset(&remotes[i], 0, sizeof(remotes[i]));
+  }
 
   Serial.println("");
   if (scanResults == 0) {
@@ -80,24 +89,34 @@ void ScanForRemote() {
       
       // Check if the current device starts with `Spectre`
       if (SSID.indexOf("Spectre") == 0) {
+        int remote_index = 0;
+        
         // SSID of interest
         Serial.println("Found a Remote.");
-        Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(rssi); Serial.print(")"); Serial.println("");
+        Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
+        
+        for (int j = 0; j < REMOTE_COUNT; j++) {
+          if (BSSIDstr == devices[j]) {
+            remote_index = j;
+            break;
+          }
+        }
+        
         // Get BSSID => Mac Address of the Remote
         int mac[6];
         if ( 6 == sscanf(BSSIDstr.c_str(), "%x:%x:%x:%x:%x:%x",  &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5] ) ) {
           for (int ii = 0; ii < 6; ++ii ) {
-            remote.peer_addr[ii] = (uint8_t) mac[ii];
+            remotes[remote_index].peer_addr[ii] = (uint8_t) mac[ii];
           }
         }
 
-        rssi = abs(WiFi.RSSI(i));
+        rssis[remote_index] = abs(WiFi.RSSI(i));
 
         // Pick a channel for connecting to the remote
-        remote.channel = CHANNEL;
+        remotes[remote_index].channel = CHANNEL;
 
         // Do not encrypt the ESP Now connection
-        remote.encrypt = 0;
+        remotes[remote_index].encrypt = 0;
 
         remoteFound = 1;
       }
@@ -106,12 +125,15 @@ void ScanForRemote() {
 
   if (remoteFound) {
     Serial.println("Remote Found, processing..");
-    if (rssi < 30) {
-      Serial.println("Start installation");
-      // PUT INSTALLATION LOOPING CODE HERE
-      /*
-       * 
-       */
+    for (int i = 0; i < REMOTE_COUNT; i++) {
+      if (rssis[i] < 40 && rssis[i] > 0) {
+        Serial.println("Start installation");
+        // PUT INSTALLATION LOOPING CODE HERE
+        /*
+         * 
+         */
+        break;
+      }
     }
   } else {
     Serial.println("Remote Not Found, trying again.");
@@ -121,58 +143,60 @@ void ScanForRemote() {
   WiFi.scanDelete();
 }
 
-// Check if the remote is already paired with the installation
+// Check if the remotes are already paired with the installation
 //  If not, pair them
-bool manageRemote() {
-  if (remote.channel == CHANNEL) {
-    if (DELETEBEFOREPAIR) {
-      deletePeer();
-    }
-
-    Serial.print("Remote Status: ");
-    // Check if the peer exists
-    bool exists = esp_now_is_peer_exist(remote.peer_addr);
-    if (exists) {
-      // Remote already paired.
-      Serial.println("Already Paired");
-      return true;
-    } else {
-      // Remote not paired, attempt pair
-      esp_err_t addStatus = esp_now_add_peer(&remote);
-      if (addStatus == ESP_OK) {
-        // Pair success
-        Serial.println("Pair success");
-        return true;
-      } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
-        // How did we get so far!!
-        Serial.println("ESPNOW Not Init");
-        return false;
-      } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
-        Serial.println("Invalid Argument");
-        return false;
-      } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
-        Serial.println("Peer list full");
-        return false;
-      } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-        Serial.println("Out of memory");
-        return false;
-      } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
-        Serial.println("Peer Exists");
-        return true;
-      } else {
-        Serial.println("Not sure what happened");
-        return false;
+void manageRemotes(bool paired[]) {
+  for (int i = 0; i < REMOTE_COUNT; i++) {
+    if (remotes[i].channel == CHANNEL) {
+      if (DELETEBEFOREPAIR) {
+        deletePeer(i);
       }
+  
+      Serial.print("Remote Status: ");
+      // Check if the peer exists
+      bool exists = esp_now_is_peer_exist(remotes[i].peer_addr);
+      if (exists) {
+        // Remote already paired.
+        Serial.println("Already Paired");
+        paired[i] = true;
+      } else {
+        // Remote not paired, attempt pair
+        esp_err_t addStatus = esp_now_add_peer(&remotes[i]);
+        if (addStatus == ESP_OK) {
+          // Pair success
+          Serial.println("Pair success");
+          paired[i] = true;
+        } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+          // How did we get so far!!
+          Serial.println("ESPNOW Not Init");
+          paired[i] = false;
+        } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
+          Serial.println("Invalid Argument");
+          paired[i] = false;
+        } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
+          Serial.println("Peer list full");
+          paired[i] = false;
+        } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
+          Serial.println("Out of memory");
+          paired[i] = false;
+        } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
+          Serial.println("Peer Exists");
+          paired[i] = true;
+        } else {
+          Serial.println("Not sure what happened");
+          paired[i] = false;
+        }
+      }
+    } else {
+      // No remotes found to process
+      // Serial.println("No remote found to process");
+      paired[i] = false;
     }
-  } else {
-    // No remote found to process
-    Serial.println("No Remote found to process");
-    return false;
   }
 }
 
-void deletePeer() {
-  esp_err_t delStatus = esp_now_del_peer(remote.peer_addr);
+void deletePeer(int remote_index) {
+  esp_err_t delStatus = esp_now_del_peer(remotes[remote_index].peer_addr);
   Serial.print("Remote Delete Status: ");
   if (delStatus == ESP_OK) {
     // Delete success
@@ -190,10 +214,10 @@ void deletePeer() {
 }
 
 // Send RSSI data to remote
-void sendData() {
-  const uint8_t *peer_addr = remote.peer_addr;
-  Serial.print("Sending: "); Serial.println(rssi);
-  esp_err_t result = esp_now_send(peer_addr, &rssi, sizeof(rssi));
+void sendData(int remote_index) {
+  const uint8_t *peer_addr = remotes[remote_index].peer_addr;
+  Serial.print("Sending: "); Serial.println(rssis[remote_index]);
+  esp_err_t result = esp_now_send(peer_addr, &rssis[remote_index], sizeof(rssis[remote_index]));
   Serial.print("Send Status: ");
   if (result == ESP_OK) {
     Serial.println("Success");
@@ -246,54 +270,23 @@ void setup() {
 
 void loop() {
   // In the loop we scan for remote
-  ScanForRemote();
-  // If remote is found, it would be populate in `remote` variable
-  // We will check if `remote` is defined and then we proceed further
-  if (remote.channel == CHANNEL) { // check if remote channel is defined
-    // `remote` is defined
-    // Add remote as peer if it has not been added already
-    bool isPaired = manageRemote();
-    if (isPaired) {
+  ScanForRemotes();
+  
+  // Add remotes as peer if it has not been added already
+  bool isPaired[REMOTE_COUNT] = {0};
+  manageRemotes(isPaired);
+
+  for (int i = 0; i < REMOTE_COUNT; i++) {
+    if (isPaired[i]) {
       // Pair success or already paired
       // Send data to device
-      sendData();
+      sendData(i);
     } else {
       // Remote pair failed
-      Serial.println("Remote pair failed!");
+      // Serial.print("Remote "); Serial.print(i); Serial.print("pair failed!");
     }
-  }
-  else {
-    // No remote found to process
   }
 
   // wait for 1ms to run the logic again
   delay(1);
 }
-
-// References and Copyrights
-/** Inspired by (apologies for the insensitive terminology):
-   ESPNOW - Basic communication - Master
-   Date: 26th September 2017
-   Author: Arvind Ravulavaru <https://github.com/arvindr21>
-   Purpose: ESPNow Communication between a Master ESP32 and a Slave ESP32
-   Description: This sketch consists of the code for the Master module.
-   Resources: (A bit outdated)
-   a. https://espressif.com/sites/default/files/documentation/esp-now_user_guide_en.pdf
-   b. http://www.esploradores.com/practica-6-conexion-esp-now/
-   << This Device Master >>
-   Flow: Master
-   Step 1 : ESPNow Init on Master and set it in STA mode
-   Step 2 : Start scanning for Slave ESP32 (we have added a prefix of `slave` to the SSID of slave for an easy setup)
-   Step 3 : Once found, add Slave as peer
-   Step 4 : Register for send callback
-   Step 5 : Start Transmitting data from Master to Slave
-   Flow: Slave
-   Step 1 : ESPNow Init on Slave
-   Step 2 : Update the SSID of Slave with a prefix of `slave`
-   Step 3 : Set Slave in AP mode
-   Step 4 : Register for receive callback and wait for data
-   Step 5 : Once data arrives, print it in the serial monitor
-   Note: Master and Slave have been defined to easily understand the setup.
-         Based on the ESPNOW API, there is no concept of Master and Slave.
-         Any devices can act as master or salve.
-*/

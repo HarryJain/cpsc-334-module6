@@ -1,11 +1,11 @@
-/** Inspired by (apologies for the insensitive terminology):
-   CPSC 334 - Module 6 - ESP-NOW Remotes
+/* CPSC 334 - Module 6 - ESP-NOW Remotes
    Date: 3 December 2021
    Author: Harry Jain <https://github.com/HarryJain>
    Purpose: ESP-NOW RSSI proximity measurement to trigger art installations with a ESP32 remote
    Description: This sketch consists of the code for the "spectre" remotes to interact with the various installations.
    References:
    a. https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/ESPNow/Basic
+   b. https://github.com/arvindr21
    << This Remote >>
    Flow: Installation
    Step 1 : Initialize ESP-NOW on Installation and set it in STA mode
@@ -35,9 +35,6 @@
 // Control pin for the buzzer motor
 #define BUZZER_PIN 13
 
-// Control pin for the indicator LED (defunct)
-// #define LED_PIN 12
-
 // Set PWM properties
 #define FREQ 5000
 #define BUZZER_CHANNEL 0
@@ -51,6 +48,10 @@ const char *names[REMOTE_COUNT] = {"Spectre_1", "Spectre_2", "Spectre_3", "Spect
 const char *passwds[REMOTE_COUNT] = {"Spectre_1_Password", "Spectre_2_Password", "Spectre_3_Password", "Spectre_4_Password"};
 // Variables to store the device index and name
 int remote_index = 0;
+
+char current_installation[18];
+int rssi_val = 0;
+int buzz_val = 0;
 
 
 // Initialize ESP Now with fallback
@@ -108,9 +109,6 @@ void setup() {
   ledcSetup(BUZZER_CHANNEL, FREQ, RESOLUTION);
   // Attach the channel to the GPIO to be controlled
   ledcAttachPin(BUZZER_PIN, BUZZER_CHANNEL);
-
-  // Set the LED control pin to be a digital output
-  // fpinMode(LED_PIN, OUTPUT);
 }
 
 
@@ -123,17 +121,41 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
   Serial.println(WiFi.RSSI());
   Serial.println("");
-  
-  // If the remote is close to one of the exhibits, activate the buzzer motor and turn on the LED
+
+  Serial.println(current_installation);
+
+  // Check if the remote is close to the exhibit that sent data
   if (*data < BUZZ_LIMIT && *data > 0) {
-    int buzz_val = sqrt(abs(*data - BUZZ_LIMIT) * 1000);
-    ledcWrite(BUZZER_CHANNEL, buzz_val);
-    // digitalWrite(LED_PIN, HIGH);
-  // If the remote is not close to any of the exhibits, stop buzzing and turn off the LED
+    // If it is an update from the currently-connected installation, modify the rssi and buzz values accordingly
+    if (macStr == current_installation) {
+      rssi_val = *data;
+      buzz_val = sqrt(abs(*data - BUZZ_LIMIT) * 1000);
+    // If it is from another installation, update the rssi and buzz values and current installation only if it is closer than the current installation
+    } else if (*data < rssi_val || buzz_val == 0) {
+      Serial.println("Changing installation");
+      rssi_val = *data;
+      buzz_val = sqrt(abs(*data - BUZZ_LIMIT) * 1000);
+      for (int i = 0; i < 17; i++) {
+        current_installation[i] = macStr[i];
+      }
+      current_installation[17] = '\0';
+    }
+  // If the remote loses connection to the currently-connected installation, stop buzzing
   } else {
-    ledcWrite(BUZZER_CHANNEL, 0);
-    // digitalWrite(LED_PIN, LOW);
+    bool current = true;
+    for (int i = 0; i < 17; i++) {
+      if (current_installation[i] != macStr[i]) {
+        current = false;
+      }
+    }
+    if (current) {
+      rssi_val = *data;
+      buzz_val = 0;
+    }
   }
+
+  // Write the current buzz value to the relevant pin
+  ledcWrite(BUZZER_CHANNEL, buzz_val);
 }
 
 
