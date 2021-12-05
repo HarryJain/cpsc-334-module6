@@ -9,16 +9,16 @@
    << This Remote >>
    Flow: Installation
    Step 1 : Initialize ESP-NOW on Installation and set it in STA mode
-   Step 2 : Start scanning for ESP32 Remotes (we have added a prefix of `spectre` to the SSID of each Remote for easy setup)
+   Step 2 : Start scanning for ESP32 Remotes (we have added a prefix of `Spectre` to the SSID of each Remote for easy setup)
    Step 3 : Once found, add Remotes as peers
    Step 4 : Register for send callback
    Step 5 : Start transmitting RSSI data from installation to nearby Remotes
    Flow: Remote
    Step 1 : Initialize ESP-NOW on Remote
-   Step 2 : Update the SSID of Remote with a prefix of `spectre`
+   Step 2 : Update the SSID of Remote with a prefix of `Spectre`
    Step 3 : Set Remote in AP mode
    Step 4 : Register for receive callback and wait for data
-   Step 5 : Once data arrives, print it in the serial monitor
+   Step 5 : Once data arrives, set the vibration accordingly
 */
 
 // Include esp_now and WiFi libraries for mesh networking
@@ -34,8 +34,10 @@
 
 // Global constant for the total number of remotes
 #define REMOTE_COUNT 4
+
 // Global list of remote objects
 esp_now_peer_info_t remotes[REMOTE_COUNT];
+
 // MAC addresses of remote ESP32s
 String devices[REMOTE_COUNT] = {"E8:68:E7:30:54:69", "E8:68:E7:30:61:4D", "E8:68:E7:30:5B:C9", "E8:68:E7:30:2A:A9"};
 
@@ -53,8 +55,9 @@ void InitESPNow() {
 }
 
 
-// Global rssi list to store proximity to each remote
+// Global RSSI list to store proximity to each remote
 uint8_t rssis[REMOTE_COUNT] = {0, 0, 0, 0};
+
 // Scan for remotes in AP mode
 void ScanForRemotes() {
   int8_t scanResults = WiFi.scanNetworks();
@@ -64,8 +67,8 @@ void ScanForRemotes() {
   for (int i = 0; i < REMOTE_COUNT; i++) {
     memset(&remotes[i], 0, sizeof(remotes[i]));
   }
-
   Serial.println("");
+
   if (scanResults == 0) {
     Serial.println("No WiFi devices in AP Mode found");
   } else {
@@ -87,14 +90,15 @@ void ScanForRemotes() {
       }
       delay(10);
       
-      // Check if the current device starts with `Spectre`
+      // If the current device starts with `Spectre`, it is a remote
       if (SSID.indexOf("Spectre") == 0) {
         int remote_index = 0;
         
         // SSID of interest
         Serial.println("Found a Remote.");
         Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
-        
+
+        // Resolve MAC address to device index
         for (int j = 0; j < REMOTE_COUNT; j++) {
           if (BSSIDstr == devices[j]) {
             remote_index = j;
@@ -110,6 +114,7 @@ void ScanForRemotes() {
           }
         }
 
+        // Store the absolute value of the RSSI in the according index of the array
         rssis[remote_index] = abs(WiFi.RSSI(i));
 
         // Pick a channel for connecting to the remote
@@ -118,11 +123,13 @@ void ScanForRemotes() {
         // Do not encrypt the ESP Now connection
         remotes[remote_index].encrypt = 0;
 
+        // Signal that a remote has been found
         remoteFound = 1;
       }
     }
   }
 
+  // If remotes are found, trigger an installation if any are close
   if (remoteFound) {
     Serial.println("Remote Found, processing..");
     for (int i = 0; i < REMOTE_COUNT; i++) {
@@ -143,9 +150,11 @@ void ScanForRemotes() {
   WiFi.scanDelete();
 }
 
+
 // Check if the remotes are already paired with the installation
 //  If not, pair them
 void manageRemotes(bool paired[]) {
+  // Loop through all the remotes and pair them if htey are unpaired
   for (int i = 0; i < REMOTE_COUNT; i++) {
     if (remotes[i].channel == CHANNEL) {
       if (DELETEBEFOREPAIR) {
@@ -195,6 +204,7 @@ void manageRemotes(bool paired[]) {
   }
 }
 
+
 void deletePeer(int remote_index) {
   esp_err_t delStatus = esp_now_del_peer(remotes[remote_index].peer_addr);
   Serial.print("Remote Delete Status: ");
@@ -213,7 +223,8 @@ void deletePeer(int remote_index) {
   }
 }
 
-// Send RSSI data to remote
+
+// Send RSSI data to remote with remote_index
 void sendData(int remote_index) {
   const uint8_t *peer_addr = remotes[remote_index].peer_addr;
   Serial.print("Sending: "); Serial.println(rssis[remote_index]);
@@ -237,7 +248,8 @@ void sendData(int remote_index) {
   }
 }
 
-// Callback when data is sent from puppet show to remote
+
+// Callback when data is sent from installation to remote
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -246,6 +258,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   Serial.println(WiFi.RSSI());
 }
+
 
 void setup() {
   Serial.begin(115200);
@@ -269,16 +282,16 @@ void setup() {
 }
 
 void loop() {
-  // In the loop we scan for remote
+  // In the loop we scan for remotes
   ScanForRemotes();
   
-  // Add remotes as peer if it has not been added already
+  // Add remotes as peers if they have not been added already
   bool isPaired[REMOTE_COUNT] = {0};
   manageRemotes(isPaired);
 
   for (int i = 0; i < REMOTE_COUNT; i++) {
     if (isPaired[i]) {
-      // Pair success or already paired
+      // If pair success or already paired
       // Send data to device
       sendData(i);
     } else {

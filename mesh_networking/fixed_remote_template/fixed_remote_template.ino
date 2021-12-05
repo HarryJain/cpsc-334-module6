@@ -9,16 +9,16 @@
    << This Remote >>
    Flow: Installation
    Step 1 : Initialize ESP-NOW on Installation and set it in STA mode
-   Step 2 : Start scanning for ESP32 Remotes (we have added a prefix of `spectre` to the SSID of each Remote for easy setup)
+   Step 2 : Start scanning for ESP32 Remotes (we have added a prefix of `Spectre` to the SSID of each Remote for easy setup)
    Step 3 : Once found, add Remotes as peers
    Step 4 : Register for send callback
    Step 5 : Start transmitting RSSI data from installation to nearby Remotes
    Flow: Remote
    Step 1 : Initialize ESP-NOW on Remote
-   Step 2 : Update the SSID of Remote with a prefix of `spectre`
+   Step 2 : Update the SSID of Remote with a prefix of `Spectre`
    Step 3 : Set Remote in AP mode
    Step 4 : Register for receive callback and wait for data
-   Step 5 : Once data arrives, print it in the serial monitor
+   Step 5 : Once data arrives, set the vibration accordingly
 */
 
 
@@ -26,7 +26,7 @@
 #include <esp_now.h>
 #include <WiFi.h>
 
-
+// Set the maximum RSSI that produces a buzz
 #define BUZZ_LIMIT 50
 
 // Set the channel for ESP-NOW
@@ -41,15 +41,17 @@
 #define RESOLUTION 8
 
 
-// Store the number of remotes and the MAC addresses of the remotes in AP-mode to get the current remote index
+// Store the number of remotes, along with their MAC addresses in AP-mode, SSID names, and passwords
 #define REMOTE_COUNT 4
 String devices[REMOTE_COUNT] = {"E8:68:E7:30:54:69", "E8:68:E7:30:61:4D", "E8:68:E7:30:5B:C9", "E8:68:E7:30:2A:A9"};
 const char *names[REMOTE_COUNT] = {"Spectre_1", "Spectre_2", "Spectre_3", "Spectre_4"};
 const char *passwds[REMOTE_COUNT] = {"Spectre_1_Password", "Spectre_2_Password", "Spectre_3_Password", "Spectre_4_Password"};
-// Variables to store the device index and name
-int remote_index = 0;
 
+// Variable to store the current device index and MAC address
+int remote_index = 0;
 char current_installation[18];
+
+// Variables to store the current RSSI and vibration motor values
 int rssi_val = 0;
 int buzz_val = 0;
 
@@ -126,11 +128,11 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
   // Check if the remote is close to the exhibit that sent data
   if (*data < BUZZ_LIMIT && *data > 0) {
-    // If it is an update from the currently-connected installation, modify the rssi and buzz values accordingly
+    // If it is an update from the currently-connected installation, modify the RSSI and buzz values accordingly
     if (macStr == current_installation) {
       rssi_val = *data;
       buzz_val = sqrt(abs(*data - BUZZ_LIMIT) * 1000);
-    // If it is from another installation, update the rssi and buzz values and current installation only if it is closer than the current installation
+    // If it is from another installation, update the RSSI and buzz values and current installation only if it is closer than the current installation
     } else if (*data < rssi_val || buzz_val == 0) {
       Serial.println("Changing installation");
       rssi_val = *data;
@@ -142,12 +144,14 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     }
   // If the remote loses connection to the currently-connected installation, stop buzzing
   } else {
+    // Check if it is the currently-connected installation
     bool current = true;
     for (int i = 0; i < 17; i++) {
       if (current_installation[i] != macStr[i]) {
         current = false;
       }
     }
+    // If it is the current installation, stop buzzing
     if (current) {
       rssi_val = *data;
       buzz_val = 0;
