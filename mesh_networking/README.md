@@ -14,7 +14,7 @@ Additionally, the code may run online or offline, as the creative aspect can be 
 ## "Spectre" Remotes: Artificial Intelligence Guides to S.C.O.T.'s AKW Takeover
 When we started considering how visitors were going to react with our exhibition, we really wanted some sort of automatic event triggering. This seemed like the perfect way to integrate the mesh networking, in particular an extension of my [ESP-NOW remote from Module 4/5](https://www.notion.so/The-Evertree-Harry-Jain-8ff39714a1e0467dbfafbb96bddc90a9). I imagined it a bit like an item or power-up in a video game that allows you to detect collectables, e.g. a compass in Legend of Zelda or the metal detector in MySims. In a similar real-life metaphor, I wanted to makes something like a metal detector meets Tile/AirTag, a concept quite close to the end result.
 
-![mysims.jpeg](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/27471af0-00bd-4490-8057-7fec17f6bcd8/mysims.jpeg)
+![mysims.jpeg](assets/mysims.jpeg)
 
 Furthermore, I hoped to evoke the mood of the overall exhibition with the enclosure design. When we were considering a ghost story, I imagined a flashlight that would "light" your way among the ghosts, giving you a way to communicate with them. When we (briefly) considered a Harry Potter-inspired gathering, I considered making some kind of wand. But when we ultimately transitioned to our story about AI, I wanted more of a "black box" design, much like AI and ML algorithms are often treated as black boxes, with little understanding of their workings or purpose. Thus, people would truly experience the remotes as an unknown, using them as "artificial intelligence guides" to explore and discover features of S.C.O.T.'s AKW takeover as they traversed the exhibition.
 
@@ -30,34 +30,34 @@ Due to the complexity of the exhibition and the desire for low latency, ESP-NOW 
 
 In the end, we ended up not implementing the idea of data collectors, as we opted for a more experiential exhibition instead of one focused on discovery or collection. Thus, we focused on triggering events in the installation and giving feedback while viewing the installations. To do so, we configured a system with 4 layers, each connected with a different sort of communication, as exhibited in the diagram below.
 
-![network_diagram.svg](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/b57cb415-dee6-485f-b71e-d59404d836ab/network_diagram.svg)
+![network_diagram.svg](assets/network_diagram.svg)
 
 The core mesh network came from the ESP32s in the remotes, which connected to the ESP32s controlling most of the installations. In particular, the remotes connected as WiFi access points to the installations, which were configured as WiFi stations. The installations then calculated RSSI values for each of the remotes and sent them back via the ESP-NOW protocol; in response the remotes vibrated if they were close to any installation, with the buzzing increasing as the remote approached the installation (using square-root growth to allow for some buzzing far away and still-moderated buzzing very close). Meanwhile, the installation ESP32s connected to computers via UART serial communication, passing on the proximity data to determine whether to play audio via the speakers. Thus, we were able to trigger the audio story and change the robot head's music based on the proximity of a viewer's remote, all in the context of a complex, multi-device system.
 
 ### Circuitry
 In terms of the circuit itself, I utilized my aforementioned remote from the previous project as a starting point. The first thing I wanted to do that I didn't have time to implement on the last remote was a vibration motor to give physical feedback, which seemed even more apt in the context of our exhibition. To do so, I used a E3055T NPN transistor to amplify the current from a GPIO control pin such that the buzzer motor would actually vibrate, along with some resistors to further control the current and voltage. Additionally, I used the same LD1117 regulator as on the last two modules to get a consistent 3.3V from a 3.7V LiPo battery for power. By connecting these components as shown in the diagram below, I was able to create a simple yet effective proximity remote control.
 
-![spectre_remote_bb.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/519a17ab-1026-4743-886b-895bcf367b5b/spectre_remote_bb.png)
+![spectre_remote_bb.png](assets/spectre_remote_bb.png)
 
 ### Enclosure
 Given the black box inspiration and the limitation on time, the project boxes from the CEID were again a perfect choice. I chose the same size boxes as my remote for *[The Evertree](https://www.notion.so/The-Evertree-Harry-Jain-8ff39714a1e0467dbfafbb96bddc90a9)*, which was exactly wide enough for a breadboard and tall enough to also fit a battery and vibration motor. They were easy to cover for use and uncover for debugging, and the vibrations reverberated perfectly through the plastic. To attach the breadboards, I used Scotch double-sided mounting tape, and for attaching the batteries to the breadboards I used the similar Scotch restickable tabs. Then, I used super glue to attach the buzzer motors, which kept the main body stable while allowing the actuator to spin and buzz. Overall, they were very durable and attractive enclosures, with the only slight difficulty being the long wiring of the buzzers, which needed to be squeezed a bit to fit into the container.
 
 ### File Structure
-- *README.md* describes all aspects of the remote mesh network, enclosures, circuitry, and code.
-- *assets* contains the images and videos relating to the mesh netowrking in the project, many of which are used in *README.md*.
-- *installation_template* contains the *installation_template.ino* Arduino sketch that was uploaded to the "installation" ESP32s during the exhibition to listen for remote triggers and send proximity data back.
-- *remote_template* contains the *remote_template.ino* Arduino sketch that was uploaded to the remote control ESP32s during the exhibition to receive proximity data and provide feedback.
-- *fixed_installation_template* contains the *fixed_installation_template.ino* Arduino sketch that was uploaded to the "installation" ESP32s after the exhibition to allow for the smoother many-to-many connections.
-- *fixed_remote_template* contains the *fixed_remote_template.ino* Arduino sketch that was uploaded to the remote control ESP32s after the exhibition to allow for the smoother many-to-many connections.
-- *spectre_remote.fzz* is the Fritzing circuit diagram for the remote control.
+- `README.md` describes all aspects of the remote mesh network, enclosures, circuitry, and code.
+- `assets` contains the images and videos relating to the mesh netowrking in the project, many of which are used in `README.md`.
+- `installation_template` contains the `installation_template.ino` Arduino sketch that was uploaded to the "installation" ESP32s during the exhibition to listen for remote triggers and send proximity data back.
+- `remote_template` contains the `remote_template.ino` Arduino sketch that was uploaded to the remote control ESP32s during the exhibition to receive proximity data and provide feedback.
+- `fixed_installation_template` contains the `fixed_installation_template.ino` Arduino sketch that was uploaded to the "installation" ESP32s after the exhibition to allow for the smoother many-to-many connections.
+- `fixed_remote_template` contains the `fixed_remote_template.ino` Arduino sketch that was uploaded to the remote control ESP32s after the exhibition to allow for the smoother many-to-many connections.
+- `spectre_remote.fzz` is the Fritzing circuit diagram for the remote control.
 
 
 ## Usage Instructions
 
 ### Running and Setup
-To run our particular exhibition setup, merely charge the remote batteries, set up all the installations, and walk around AKW. For the remotes in particular, they should be loaded with the updated *fixed_remote_template.ino* sketch, while similarly the installations should use modified versions of the *fixed_installation_template.ino* sketch. Then, they just need to be powered and carried around the exhibition, following the instructions from the audio and directions of the physical signage.
+To run our particular exhibition setup, merely charge the remote batteries, set up all the installations, and walk around AKW. For the remotes in particular, they should be loaded with the updated `fixed_remote_template.ino` sketch, while similarly the installations should use modified versions of the `fixed_installation_template.ino*`sketch. Then, they just need to be powered and carried around the exhibition, following the instructions from the audio and directions of the physical signage.
 
-To create a similar mesh system of remotes that trigger various installations, you first need to determine the number of remotes and installations that you wish to implement. Then, design some installations you want to trigger via remotes and build them physically. Next, build the remotes using the circuit diagram above and some sort of simple enclosure. Finally, load the code onto the installations and remotes, putting your installation Arduino code in the *// PUT INSTALLATION SETUP CODE HERE* and *// PUT INSTALLATION LOOPING CODE HERE* comments of *fixed_installation_template.ino*. Afterwards, just set up your exhibition, making sure to place the installations to make interaction via the remotes as immersive and interesting as possible.
+To create a similar mesh system of remotes that trigger various installations, you first need to determine the number of remotes and installations that you wish to implement. Then, design some installations you want to trigger via remotes and build them physically. Next, build the remotes using the circuit diagram above and some sort of simple enclosure. Finally, load the code onto the installations and remotes, putting your installation Arduino code in the `// PUT INSTALLATION SETUP CODE HERE` and `// PUT INSTALLATION LOOPING CODE HERE` comments of `fixed_installation_template.ino`. Afterwards, just set up your exhibition, making sure to place the installations to make interaction via the remotes as immersive and interesting as possible.
 
 ### Interacting and Debugging
 Using this system is meant to be intuitive and exploratory, as you just carry the remote with you throughout the exhibition and see what triggers. You should feel an increasing vibration as you approach an installation, which are typically visible via some sort of speaker arrangement and/or an ESP32 itself. Then, there should be some kind of action or response from the installation, whether through some sort of audio playback or tone change.
