@@ -30,7 +30,7 @@ Due to the complexity of the exhibition and the desire for low latency, ESP-NOW 
 
 In the end, we ended up not implementing the idea of data collectors, as we opted for a more experiential exhibition instead of one focused on discovery or collection. Thus, we focused on triggering events in the installation and giving feedback while viewing the installations. To do so, we configured a system with 4 layers, each connected with a different sort of communication, as exhibited in the diagram below.
 
-![network_diagram.svg](assets/network_diagram.svg)
+![network_diagram.svg](assets/network_diagram.jpg)
 
 The core mesh network came from the ESP32s in the remotes, which connected to the ESP32s controlling most of the installations. In particular, the remotes connected as WiFi access points to the installations, which were configured as WiFi stations. The installations then calculated RSSI values for each of the remotes and sent them back via the ESP-NOW protocol; in response the remotes vibrated if they were close to any installation, with the buzzing increasing as the remote approached the installation (using square-root growth to allow for some buzzing far away and still-moderated buzzing very close). Meanwhile, the installation ESP32s connected to computers via UART serial communication, passing on the proximity data to determine whether to play audio via the speakers. Thus, we were able to trigger the audio story and change the robot head's music based on the proximity of a viewer's remote, all in the context of a complex, multi-device system.
 
@@ -41,6 +41,8 @@ In terms of the circuit itself, I utilized my aforementioned remote from the pre
 
 ### Enclosure
 Given the black box inspiration and the limitation on time, the project boxes from the CEID were again a perfect choice. I chose the same size boxes as my remote for *[The Evertree](https://www.notion.so/The-Evertree-Harry-Jain-8ff39714a1e0467dbfafbb96bddc90a9)*, which was exactly wide enough for a breadboard and tall enough to also fit a battery and vibration motor. They were easy to cover for use and uncover for debugging, and the vibrations reverberated perfectly through the plastic. To attach the breadboards, I used Scotch double-sided mounting tape, and for attaching the batteries to the breadboards I used the similar Scotch restickable tabs. Then, I used super glue to attach the buzzer motors, which kept the main body stable while allowing the actuator to spin and buzz. Overall, they were very durable and attractive enclosures, with the only slight difficulty being the long wiring of the buzzers, which needed to be squeezed a bit to fit into the container.
+
+![all_open.JPG](assets/all_open.jpg)
 
 ### File Structure
 - `README.md` describes all aspects of the remote mesh network, enclosures, circuitry, and code.
