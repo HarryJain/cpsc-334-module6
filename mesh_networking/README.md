@@ -67,6 +67,7 @@ In either scenario, there are several parameters in the code that you can/should
 - `devices` for recording the MAC addresses of the remotes (running this code once on each remote without setting these will give you the MAC addresses from the `"AP  MAC: "` print statement in `setup`)
 - `names` for choosing the names of each remote (not recommended to change the prefix of `Spectre` unless necessary due to other dependencies in `fixed_installation_template.ino` that you would also have to change)
 - `passwds` for choosing the passwords of each remote (see above note about changing the `Spectre` prefix)
+- 
 and (in the `fixed_installation_template.ino`):
 - `RSSI_LIMIT` for adjusting how close remotes have to be to trigger an installation
 - `LED` for adjusting which pin lights an indicator LED when a remote is close (or can remove altogether along with the lines `digitalWrite(LED, HIGH);` and `digitalWrite(LED, LOW);`)
