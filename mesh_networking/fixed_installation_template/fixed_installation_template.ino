@@ -26,6 +26,12 @@
 #include <WiFi.h>
 
 
+// Set the maximum RSSI that starts the installation
+#define RSSI_LIMIT 40
+// LED for indicating the start of an installation
+#define LED 14
+
+
 // Connection and debugging constants
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
@@ -64,6 +70,7 @@ void ScanForRemotes() {
   
   // Reset on each scan
   bool remoteFound = 0;
+  bool remoteClose = 0;
   for (int i = 0; i < REMOTE_COUNT; i++) {
     memset(&remotes[i], 0, sizeof(remotes[i]));
   }
@@ -133,17 +140,25 @@ void ScanForRemotes() {
   if (remoteFound) {
     Serial.println("Remote Found, processing..");
     for (int i = 0; i < REMOTE_COUNT; i++) {
-      if (rssis[i] < 40 && rssis[i] > 0) {
+      if (rssis[i] < RSSI_LIMIT && rssis[i] > 0) {
         Serial.println("Start installation");
+        digitalWrite(LED, HIGH);
         // PUT INSTALLATION LOOPING CODE HERE
         /*
          * 
          */
+        // Signal that a device is in triggering range
+        remoteClose = 1;
         break;
       }
     }
   } else {
     Serial.println("Remote Not Found, trying again.");
+  }
+
+  // Turn off the LED if no remotes are in triggering range
+  if (remoteClose == 0) {
+    digitalWrite(LED, LOW);
   }
 
   // Clean up WiFi scan RAM
@@ -154,7 +169,7 @@ void ScanForRemotes() {
 // Check if the remotes are already paired with the installation
 //  If not, pair them
 void manageRemotes(bool paired[]) {
-  // Loop through all the remotes and pair them if htey are unpaired
+  // Loop through all the remotes and pair them if they are unpaired
   for (int i = 0; i < REMOTE_COUNT; i++) {
     if (remotes[i].channel == CHANNEL) {
       if (DELETEBEFOREPAIR) {
@@ -275,6 +290,7 @@ void setup() {
   //  get the status of Trasnmitted packet
   esp_now_register_send_cb(OnDataSent);
 
+  pinMode(LED, OUTPUT);
   // PUT INSTALLATION SETUP CODE HERE
   /*
    * 
