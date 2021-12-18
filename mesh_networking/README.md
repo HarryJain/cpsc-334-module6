@@ -12,6 +12,8 @@ Additionally, the code may run online or offline, as the creative aspect can be 
 
 
 ## "Spectre" Remotes: Artificial Intelligence Guides to S.C.O.T.'s AKW Takeover
+![all_open.jpg](assets/all_open.jpg)
+
 When we started considering how visitors should interact with our exhibition, we really wanted some sort of automatic event triggering. This seemed like the perfect way to integrate the mesh networking, in particular an extension of my [ESP-NOW remote from Module 4/5](https://www.notion.so/The-Evertree-Harry-Jain-8ff39714a1e0467dbfafbb96bddc90a9). I imagined it a bit like an item or power-up in a video game that allows you to detect collectables, e.g. a compass in Legend of Zelda or the metal detector in MySims. In a similar real-life metaphor, I wanted to make something like a metal detector meets Tile/AirTag, a concept quite close to the end result.
 
 ![mysims.jpeg](assets/mysims.jpeg)
